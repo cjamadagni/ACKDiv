@@ -1,2 +1,2 @@
 # ACKDiv
-Simulation of the Acknowledge Division attack in ns-3
+Simulation of the Acknowledgement Division attack in ns-3
