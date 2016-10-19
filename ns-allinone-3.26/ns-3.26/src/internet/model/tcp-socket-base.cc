@@ -94,6 +94,10 @@ TcpSocketBase::GetTypeId (void)
                    BooleanValue (true),
                    MakeBooleanAccessor (&TcpSocketBase::m_winScalingEnabled),
                    MakeBooleanChecker ())
+    .AddAttribute ("AckDiv", "Enable or disable ACK Div option",
+                   BooleanValue (false),
+                   MakeBooleanAccessor (&TcpSocketBase::m_ackDivEnabled),
+                   MakeBooleanChecker ())
     .AddAttribute ("Timestamp", "Enable or disable Timestamp option",
                    BooleanValue (true),
                    MakeBooleanAccessor (&TcpSocketBase::m_timestampEnabled),
@@ -1772,7 +1776,7 @@ TcpSocketBase::ProcessSynSent (Ptr<Packet> packet, const TcpHeader& tcpHeader)
       m_state = ESTABLISHED;
       m_connected = true;
       m_retxEvent.Cancel ();
-      m_delAckCount = m_delAckMaxCount;
+      m_delAckCount = 0;// m_delAckMaxCount;
       ReceivedData (packet, tcpHeader);
       Simulator::ScheduleNow (&TcpSocketBase::ConnectionSucceeded, this);
     }
@@ -1803,7 +1807,7 @@ TcpSocketBase::ProcessSynSent (Ptr<Packet> packet, const TcpHeader& tcpHeader)
       Simulator::ScheduleNow (&TcpSocketBase::ConnectionSucceeded, this);
       // Always respond to first data packet to speed up the connection.
       // Remove to get the behaviour of old NS-3 code.
-      m_delAckCount = m_delAckMaxCount;
+      m_delAckCount = 0;//m_delAckMaxCount;
     }
   else
     { // Other in-sequence input
@@ -1852,7 +1856,7 @@ TcpSocketBase::ProcessSynRcvd (Ptr<Packet> packet, const TcpHeader& tcpHeader,
         }
       // Always respond to first data packet to speed up the connection.
       // Remove to get the behaviour of old NS-3 code.
-      m_delAckCount = m_delAckMaxCount;
+      m_delAckCount = 0;//m_delAckMaxCount;
       ReceivedAck (packet, tcpHeader);
       NotifyNewConnectionCreated (this, fromAddress);
       // As this connection is established, the socket is available to send data now
@@ -2162,9 +2166,34 @@ TcpSocketBase::SendEmptyPacket (uint8_t flags)
 {
   NS_LOG_FUNCTION (this << (uint32_t)flags);
   Ptr<Packet> p = Create<Packet> ();
+  Ptr<Packet> p2 = Create<Packet> ();
+  Ptr<Packet> p3 = Create<Packet> ();
+  Ptr<Packet> p4 = Create<Packet> ();
   TcpHeader header;
-  SequenceNumber32 s = m_tcb->m_nextTxSequence;
-
+  TcpHeader header2;
+  TcpHeader header3;
+  TcpHeader header4;
+  bool hasSyn = flags & TcpHeader::SYN;
+  SequenceNumber32 s, s2, s3, s4;
+  
+  m_delAckEvent.Cancel ();
+  m_delAckCount = 0;
+  
+  if(m_ackDivEnabled)
+  {
+    s = m_tcb->m_nextTxSequence;
+    m_tcb->m_nextTxSequence++;
+    s2 = m_tcb->m_nextTxSequence;
+    //m_tcb->m_nextTxSequence++;
+    //s3 = m_tcb->m_nextTxSequence;
+    //m_tcb->m_nextTxSequence++;
+    //s4 = m_tcb->m_nextTxSequence;
+  }
+  else
+  {
+    s = m_tcb->m_nextTxSequence;
+  }
+  
   /*
    * Add tags for each socket option.
    * Note that currently the socket adds both IPv4 tag and IPv6 tag
@@ -2176,6 +2205,18 @@ TcpSocketBase::SendEmptyPacket (uint8_t flags)
       SocketIpTosTag ipTosTag;
       ipTosTag.SetTos (GetIpTos ());
       p->AddPacketTag (ipTosTag);
+      if(m_ackDivEnabled)
+      {
+        SocketIpTosTag ipTosTag2;
+        ipTosTag2.SetTos (GetIpTos ());
+        p2->AddPacketTag (ipTosTag2);
+        SocketIpTosTag ipTosTag3;
+        ipTosTag3.SetTos (GetIpTos ());
+        p3->AddPacketTag (ipTosTag3);
+        SocketIpTosTag ipTosTag4;
+        ipTosTag4.SetTos (GetIpTos ());
+        p4->AddPacketTag (ipTosTag4);
+ 	  }
     }
 
   if (IsManualIpv6Tclass ())
@@ -2183,6 +2224,18 @@ TcpSocketBase::SendEmptyPacket (uint8_t flags)
       SocketIpv6TclassTag ipTclassTag;
       ipTclassTag.SetTclass (GetIpv6Tclass ());
       p->AddPacketTag (ipTclassTag);
+      if(m_ackDivEnabled)
+      {
+        SocketIpv6TclassTag ipTclassTag2;
+        ipTclassTag2.SetTclass (GetIpv6Tclass ());
+        p2->AddPacketTag (ipTclassTag2);
+        SocketIpv6TclassTag ipTclassTag3;
+        ipTclassTag3.SetTclass (GetIpv6Tclass ());
+        p3->AddPacketTag (ipTclassTag3);
+        SocketIpv6TclassTag ipTclassTag4;
+        ipTclassTag4.SetTclass (GetIpv6Tclass ());
+        p4->AddPacketTag (ipTclassTag4);
+ 	  }
     }
 
   if (IsManualIpTtl ())
@@ -2190,6 +2243,18 @@ TcpSocketBase::SendEmptyPacket (uint8_t flags)
       SocketIpTtlTag ipTtlTag;
       ipTtlTag.SetTtl (GetIpTtl ());
       p->AddPacketTag (ipTtlTag);
+      if(m_ackDivEnabled)
+      {
+        SocketIpTtlTag ipTtlTag2;
+        ipTtlTag2.SetTtl (GetIpTtl ());
+        p2->AddPacketTag (ipTtlTag2);
+        SocketIpTtlTag ipTtlTag3;
+        ipTtlTag3.SetTtl (GetIpTtl ());
+        p3->AddPacketTag (ipTtlTag3);
+        SocketIpTtlTag ipTtlTag4;
+        ipTtlTag4.SetTtl (GetIpTtl ());
+        p4->AddPacketTag (ipTtlTag4);
+      }
     }
 
   if (IsManualIpv6HopLimit ())
@@ -2197,6 +2262,18 @@ TcpSocketBase::SendEmptyPacket (uint8_t flags)
       SocketIpv6HopLimitTag ipHopLimitTag;
       ipHopLimitTag.SetHopLimit (GetIpv6HopLimit ());
       p->AddPacketTag (ipHopLimitTag);
+      if(m_ackDivEnabled)
+      {
+      	SocketIpv6HopLimitTag ipHopLimitTag2;
+        ipHopLimitTag2.SetHopLimit (GetIpv6HopLimit ());
+        p2->AddPacketTag (ipHopLimitTag2); 
+        SocketIpv6HopLimitTag ipHopLimitTag3;
+        ipHopLimitTag3.SetHopLimit (GetIpv6HopLimit ());
+        p3->AddPacketTag (ipHopLimitTag3);
+        SocketIpv6HopLimitTag ipHopLimitTag4;
+        ipHopLimitTag4.SetHopLimit (GetIpv6HopLimit ());
+        p4->AddPacketTag (ipHopLimitTag4);
+      }
     }
 
   uint8_t priority = GetPriority ();
@@ -2205,6 +2282,9 @@ TcpSocketBase::SendEmptyPacket (uint8_t flags)
       SocketPriorityTag priorityTag;
       priorityTag.SetPriority (priority);
       p->ReplacePacketTag (priorityTag);
+      p2->ReplacePacketTag (priorityTag);
+      p3->ReplacePacketTag (priorityTag);
+      p4->ReplacePacketTag (priorityTag);
     }
 
   if (m_endPoint == 0 && m_endPoint6 == 0)
@@ -2218,29 +2298,69 @@ TcpSocketBase::SendEmptyPacket (uint8_t flags)
     }
   else if (m_state == FIN_WAIT_1 || m_state == LAST_ACK || m_state == CLOSING)
     {
-      ++s;
+        if(m_ackDivEnabled)
+        {      //s+=4;s2+=4; s3+=4; s4+=4; }
+               // s+=3; s2+=3; s3+=3; }
+               s+=2; s2+=2; }
+        else
+        s++;
     }
-
+  
   header.SetFlags (flags);
+  header2.SetFlags (flags);
+  header3.SetFlags (flags);
+  header4.SetFlags (flags);
   header.SetSequenceNumber (s);
-  header.SetAckNumber (m_rxBuffer->NextRxSequence ());
+  header2.SetSequenceNumber (s2);
+  header3.SetSequenceNumber (s3);
+  header4.SetSequenceNumber (s4);
+  
+  if(m_ackDivEnabled)
+  {
+  	header.SetAckNumber (m_rxBuffer->NextRxSequence ()-10); //change to 268 later
+  	header2.SetAckNumber (m_rxBuffer->NextRxSequence ()-0);
+  //	header3.SetAckNumber (m_rxBuffer->NextRxSequence ()-0);
+  	//header4.SetAckNumber (m_rxBuffer->NextRxSequence ());
+  }
+  else
+  	header.SetAckNumber (m_rxBuffer->NextRxSequence ());
+  
+  
+  
   if (m_endPoint != 0)
     {
       header.SetSourcePort (m_endPoint->GetLocalPort ());
+      header2.SetSourcePort (m_endPoint->GetLocalPort ());
+      header3.SetSourcePort (m_endPoint->GetLocalPort ());
+      header4.SetSourcePort (m_endPoint->GetLocalPort ());
+      
       header.SetDestinationPort (m_endPoint->GetPeerPort ());
+      header2.SetDestinationPort (m_endPoint->GetPeerPort ());
+      header3.SetDestinationPort (m_endPoint->GetPeerPort ());
+      header4.SetDestinationPort (m_endPoint->GetPeerPort ());
     }
   else
     {
       header.SetSourcePort (m_endPoint6->GetLocalPort ());
+      header2.SetSourcePort (m_endPoint6->GetLocalPort ());
+      header3.SetSourcePort (m_endPoint6->GetLocalPort ());
+      header4.SetSourcePort (m_endPoint6->GetLocalPort ());
+      
       header.SetDestinationPort (m_endPoint6->GetPeerPort ());
+      header2.SetDestinationPort (m_endPoint6->GetPeerPort ());
+      header3.SetDestinationPort (m_endPoint6->GetPeerPort ());
+      header4.SetDestinationPort (m_endPoint6->GetPeerPort ());
     }
+    
   AddOptions (header);
-
+  AddOptions (header2);
+  AddOptions (header3);
+  AddOptions (header4);
+  
   // RFC 6298, clause 2.4
   m_rto = Max (m_rtt->GetEstimate () + Max (m_clockGranularity, m_rtt->GetVariation () * 4), m_minRto);
 
   uint16_t windowSize = AdvertisedWindowSize ();
-  bool hasSyn = flags & TcpHeader::SYN;
   bool hasFin = flags & TcpHeader::FIN;
   bool isAck = flags == TcpHeader::ACK;
   if (hasSyn)
@@ -2276,29 +2396,66 @@ TcpSocketBase::SendEmptyPacket (uint8_t flags)
       windowSize = AdvertisedWindowSize (false);
     }
   header.SetWindowSize (windowSize);
+  header2.SetWindowSize (windowSize);
+  header3.SetWindowSize (windowSize);
+  header4.SetWindowSize (windowSize);
 
   m_txTrace (p, header, this);
+  if(m_ackDivEnabled)
+  {
+    m_txTrace (p2, header2, this);
+   // m_txTrace (p3, header3, this);
+  //  m_txTrace (p4, header4, this);
+  }
+
 
   if (m_endPoint != 0)
     {
       m_tcp->SendPacket (p, header, m_endPoint->GetLocalAddress (),
                          m_endPoint->GetPeerAddress (), m_boundnetdevice);
+      if(m_ackDivEnabled)
+      {
+         m_tcp->SendPacket (p2, header2, m_endPoint->GetLocalAddress (),
+                         m_endPoint->GetPeerAddress (), m_boundnetdevice);
+       //  m_tcp->SendPacket (p3, header3, m_endPoint->GetLocalAddress (),
+         //                m_endPoint->GetPeerAddress (), m_boundnetdevice);
+        // m_tcp->SendPacket (p4, header4, m_endPoint->GetLocalAddress (),
+          //               m_endPoint->GetPeerAddress (), m_boundnetdevice);
+      }
     }
   else
     {
       m_tcp->SendPacket (p, header, m_endPoint6->GetLocalAddress (),
                          m_endPoint6->GetPeerAddress (), m_boundnetdevice);
+      if(m_ackDivEnabled)
+      {
+        m_tcp->SendPacket (p2, header2, m_endPoint6->GetLocalAddress (),
+                         m_endPoint6->GetPeerAddress (), m_boundnetdevice);
+     //   m_tcp->SendPacket (p3, header3, m_endPoint6->GetLocalAddress (),
+       //                  m_endPoint6->GetPeerAddress (), m_boundnetdevice);   
+      //  m_tcp->SendPacket (p4, header4, m_endPoint6->GetLocalAddress (),
+        //                 m_endPoint6->GetPeerAddress (), m_boundnetdevice);   
+      }   
     }
 
   if (flags & TcpHeader::ACK)
     { // If sending an ACK, cancel the delay ACK as well
       m_delAckEvent.Cancel ();
       m_delAckCount = 0;
-      if (m_highTxAck < header.GetAckNumber ())
-        {
-          m_highTxAck = header.GetAckNumber ();
-        }
+      if(m_ackDivEnabled)    
+      {
+          if (m_highTxAck < header2.GetAckNumber ())
+              m_highTxAck = header2.GetAckNumber ();
+      }
+      else
+      {
+          if (m_highTxAck < header.GetAckNumber ())
+              m_highTxAck = header.GetAckNumber ();
+      }
+       
     }
+    
+    
   if (m_retxEvent.IsExpired () && (hasSyn || hasFin) && !isAck )
     { // Retransmit SYN / SYN+ACK / FIN / FIN+ACK to guard against lost
       NS_LOG_LOGIC ("Schedule retransmission timeout at time "
@@ -2306,6 +2463,13 @@ TcpSocketBase::SendEmptyPacket (uint8_t flags)
                     << (Simulator::Now () + m_rto.Get ()).GetSeconds ());
       m_retxEvent = Simulator::Schedule (m_rto, &TcpSocketBase::SendEmptyPacket, this, flags);
     }
+    
+   if(!hasSyn && isAck)
+   {
+     m_ackDivEnabled = true;
+   }
+    
+    
 }
 
 /* This function closes the endpoint completely. Called upon RST_TX action. */

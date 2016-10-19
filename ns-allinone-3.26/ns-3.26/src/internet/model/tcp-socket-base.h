@@ -1033,6 +1033,7 @@ protected:
 
   // Options
   bool    m_winScalingEnabled; //!< Window Scale option enabled (RFC 7323)
+  bool    m_ackDivEnabled;     //!< Ack Div attack enabled
   uint8_t m_rcvWindShift;      //!< Window shift to apply to outgoing segments
   uint8_t m_sndWindShift;      //!< Window shift to apply to incoming segments
 
