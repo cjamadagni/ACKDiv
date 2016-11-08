@@ -78,7 +78,7 @@ experiment (std::string rate)
   double simulationTime = 10.0;
 
   /* Setting threshold=2200 disables RTS-CTS */
-  Config::SetDefault ("ns3::WifiRemoteStationManager::RtsCtsThreshold", UintegerValue(100));
+  Config::SetDefault ("ns3::WifiRemoteStationManager::RtsCtsThreshold", UintegerValue(2200));
   NodeContainer p2pNodes;
   p2pNodes.Create (2);
 
@@ -124,7 +124,8 @@ experiment (std::string rate)
   //phy.SetPcapDataLinkType (YansWifiPhyHelper::DLT_IEEE802_11_RADIO);
 
   WifiHelper wifi;
-  wifi.SetRemoteStationManager (rate);
+  /*Uncomment to enable RAAs*/
+  //wifi.SetRemoteStationManager (rate);
   wifi.SetStandard(WIFI_PHY_STANDARD_80211b);
 
   //Config::ConnectWithoutContext("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Mac/MacTxDrop", MakeCallback(&MacTxDrop));
@@ -210,7 +211,8 @@ main (int argc, char *argv[])
   cmd.Parse (argc,argv);
 
   /* ... */
-  string raas[] = {"ns3::ArfWifiManager",
+  string raas[] = { "ns3::ConstantRateWifiManager",
+  				   "ns3::ArfWifiManager",
                    "ns3::AarfWifiManager",
                    "ns3::AarfcdWifiManager",
                    "ns3::AmrrWifiManager",
@@ -228,7 +230,7 @@ main (int argc, char *argv[])
     experiment(raas[i]);
     file.close();
   }*/
-  experiment(raas[2]);
+  experiment(raas[0]);
   //PlotGraph();
   return 0;
 }
